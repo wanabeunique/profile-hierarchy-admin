@@ -49,7 +49,7 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims := mw.GetClaims(r.Context())
-	if !mw.CheckProfileAccess(h.DB, claims, profileID) {
+	if !mw.CheckProfileWrite(h.DB, claims, profileID) {
 		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
@@ -212,7 +212,7 @@ func (h *OrderHandler) findOrderWithAccess(w http.ResponseWriter, r *http.Reques
 	}
 
 	claims := mw.GetClaims(r.Context())
-	if !mw.CheckProfileAccess(h.DB, claims, order.ProfileID) {
+	if !mw.CheckProfileWrite(h.DB, claims, order.ProfileID) {
 		writeError(w, http.StatusForbidden, "access denied")
 		return nil, errors.New("access denied")
 	}

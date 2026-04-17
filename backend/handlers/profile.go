@@ -176,7 +176,11 @@ func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.DB.Create(&profile).Error; err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create profile: "+err.Error())
+		if isDuplicateKey(err) {
+			writeError(w, http.StatusConflict, "профиль с таким email уже существует")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "не удалось создать профиль")
 		return
 	}
 
@@ -281,7 +285,11 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.DB.Model(&profile).Updates(updates).Error; err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update profile: "+err.Error())
+		if isDuplicateKey(err) {
+			writeError(w, http.StatusConflict, "профиль с таким email уже существует")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "не удалось обновить профиль")
 		return
 	}
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
@@ -49,4 +50,9 @@ func parseIDParam(r *http.Request, param string) (uint, error) {
 // isNotFound checks if the error is a GORM record-not-found error.
 func isNotFound(err error) bool {
 	return errors.Is(err, gorm.ErrRecordNotFound)
+}
+
+// isDuplicateKey checks if the error is a unique constraint violation (PostgreSQL code 23505).
+func isDuplicateKey(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "23505")
 }

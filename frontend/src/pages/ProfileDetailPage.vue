@@ -72,7 +72,8 @@ function statusBadgeVariant(status: string): 'destructive' | 'secondary' | 'succ
 const canCreateChild = computed(() => {
   if (!profile.value) return false
   if (auth.isAdmin) return profile.value.type === 'plus' || profile.value.type === 'standard'
-  return auth.canCreateChildren
+  // Non-admin can only create children on their own profile
+  return auth.canCreateChildren && auth.profileId === profile.value.id
 })
 
 const childType = computed(() => {
@@ -81,10 +82,13 @@ const childType = computed(() => {
   return 'min'
 })
 
-const hasAccess = computed(() => {
-  if (auth.isAdmin) return true
+// Can create orders / pay — only for own profile or direct child (not grandchild)
+const canManageOrders = computed(() => {
   if (!profile.value) return false
-  return auth.profileId === profile.value.id
+  if (auth.isAdmin) return true
+  if (auth.profileId === profile.value.id) return true
+  // Direct child: parent_id points to current user
+  return profile.value.parentId === auth.profileId
 })
 
 async function buildBreadcrumbs(p: Profile) {
@@ -121,12 +125,6 @@ async function loadProfile() {
     const { data } = await api.get<Profile>(`/profiles/${id}`)
     profile.value = data
 
-    if (!hasAccess.value && !auth.isAdmin) {
-      error.value = 'У вас нет доступа к этому профилю'
-      loading.value = false
-      return
-    }
-
     await buildBreadcrumbs(data)
 
     const [ordersRes, childrenRes] = await Promise.all([
@@ -138,8 +136,19 @@ async function loadProfile() {
 
     orders.value = ordersRes.data
     children.value = childrenRes.data
-  } catch {
-    error.value = 'Ошибка загрузки профиля'
+  } catch (e: unknown) {
+    if (e && typeof e === 'object' && 'response' in e) {
+      const axiosError = e as { response?: { status?: number; data?: { error?: string } } }
+      if (axiosError.response?.status === 403) {
+        error.value = 'У вас нет доступа к этому профилю'
+      } else if (axiosError.response?.status === 404) {
+        error.value = 'Профиль не найден'
+      } else {
+        error.value = 'Ошибка загрузки профиля'
+      }
+    } else {
+      error.value = 'Ошибка соединения с сервером'
+    }
   } finally {
     loading.value = false
   }
@@ -386,6 +395,7 @@ watch(() => route.params.id, loadProfile)
           <div class="flex items-center justify-between">
             <CardTitle>Заказы</CardTitle>
             <Button
+              v-if="canManageOrders"
               size="sm"
               @click="router.push(`/profiles/${profile.id}/orders/create`)"
             >
@@ -419,7 +429,7 @@ watch(() => route.params.id, loadProfile)
                 </TableCell>
                 <TableCell>
                   <Button
-                    v-if="order.status !== 'Оплачено'"
+                    v-if="order.status !== 'Оплачено' && canManageOrders"
                     variant="outline"
                     size="sm"
                     @click="openPayDialog(order)"

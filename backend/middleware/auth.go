@@ -62,6 +62,23 @@ func IsAdmin(ctx context.Context) bool {
 	return c != nil && c.Role == types.RoleAdmin
 }
 
+// CheckProfileWrite checks whether the requesting profile can create orders / pay for the target profile.
+// Rules: self or direct children only (not grandchildren).
+func CheckProfileWrite(db *gorm.DB, claims *types.JWTClaims, targetProfileID uint) bool {
+	if claims.Role == types.RoleAdmin {
+		return true
+	}
+	if claims.ProfileID == targetProfileID {
+		return true
+	}
+	// Only direct children
+	var count int64
+	db.Model(&models.Profile{}).
+		Where("id = ? AND parent_id = ?", targetProfileID, claims.ProfileID).
+		Count(&count)
+	return count > 0
+}
+
 // CheckProfileAccess checks whether the requesting profile can access the target profile.
 // Rules:
 //   - A profile can always access itself.
