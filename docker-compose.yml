@@ -4,9 +4,7 @@ services:
     environment:
       POSTGRES_DB: testapp
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,17 +15,15 @@ services:
 
   backend:
     build: ./backend
-    ports:
-      - "8080:8080"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       DB_NAME: testapp
-      JWT_SECRET: super-secret-jwt-key-change-in-production
-      ADMIN_USERNAME: admin
-      ADMIN_PASSWORD: admin123
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
